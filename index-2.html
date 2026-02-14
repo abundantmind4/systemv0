@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Archway — Systems Engineering Platform</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231d4ed8'/><path d='M16 6l-2 6h-6l5 3.5-2 6.5 5-3.5 5 3.5-2-6.5 5-3.5h-6z' fill='white'/></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg-primary: #fafbfc; --bg-secondary: #ffffff; --bg-tertiary: #f1f3f5;
+  --border: #e2e5e9; --border-light: #edf0f2;
+  --text-primary: #1a1d21; --text-secondary: #5e6369; --text-tertiary: #8b9099;
+  --accent: #1e40af; --accent-light: #eff3ff; --accent-hover: #1e3a8a;
+  --success: #059669; --success-bg: #ecfdf5;
+  --warning: #d97706; --warning-bg: #fffbeb;
+  --danger: #dc2626; --danger-bg: #fef2f2;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04); --shadow-md: 0 2px 8px rgba(0,0,0,0.06); --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+  --radius: 8px; --radius-sm: 6px; --radius-lg: 12px;
+}
+html, body, #root { height: 100%; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg-primary); color: var(--text-primary); -webkit-font-smoothing: antialiased; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+.fade-in { animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+input, select, textarea { font-family: 'DM Sans', sans-serif; font-size: 13px; }
+.diagram-node { transition: filter 0.15s ease; }
+.diagram-node:hover { filter: brightness(0.97); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback, useMemo } = React;
+
+// ─── ICON COMPONENTS (inline SVG) ────────────────────────────────────────────
+const Icon = ({ d, size = 16, color = 'currentColor', strokeWidth = 2, style = {} }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, ...style }}>
+    {Array.isArray(d) ? d.map((p, i) => <path key={i} d={p} />) : <path d={d} />}
+  </svg>
+);
+
+// Icon paths
+const icons = {
+  layoutDashboard: (p) => <Icon {...p} d={['M3 3h7v9H3z','M14 3h7v5h-7z','M14 12h7v9h-7z','M3 16h7v5H3z']} />,
+  layers: (p) => <Icon {...p} d={['M12 2L2 7l10 5 10-5-10-5z','M2 17l10 5 10-5','M2 12l10 5 10-5']} />,
+  target: (p) => <Icon {...p} d={['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z','M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z','M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4z']} />,
+  kanban: (p) => <Icon {...p} d={['M6 5v11','M12 5v6','M18 5v14','M3 3h4v16H3z','M9 3h6v10H9z','M17 3h4v18h-4z']} />,
+  messageSquare: (p) => <Icon {...p} d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+  fileDown: (p) => <Icon {...p} d={['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z','M14 2v6h6','M12 18v-6','M9 15l3 3 3-3']} />,
+  plus: (p) => <Icon {...p} d={['M12 5v14','M5 12h14']} />,
+  trash: (p) => <Icon {...p} d={['M3 6h18','M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6','M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2','M10 11v6','M14 11v6']} />,
+  link2: (p) => <Icon {...p} d={['M15 7h3a5 5 0 0 1 0 10h-3','M9 17H6a5 5 0 0 1 0-10h3','M8 12h8']} />,
+  chevronRight: (p) => <Icon {...p} d="M9 18l6-6-6-6" />,
+  chevronDown: (p) => <Icon {...p} d="M6 9l6 6 6-6" />,
+  zoomIn: (p) => <Icon {...p} d={['M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16z','M21 21l-4.35-4.35','M11 8v6','M8 11h6']} />,
+  zoomOut: (p) => <Icon {...p} d={['M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16z','M21 21l-4.35-4.35','M8 11h6']} />,
+  maximize: (p) => <Icon {...p} d={['M8 3H5a2 2 0 0 0-2 2v3','M21 8V5a2 2 0 0 0-2-2h-3','M3 16v3a2 2 0 0 0 2 2h3','M16 21h3a2 2 0 0 0 2-2v-3']} />,
+  box: (p) => <Icon {...p} d={['M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z','M3.27 6.96L12 12.01l8.73-5.05','M12 22.08V12']} />,
+  activity: (p) => <Icon {...p} d="M22 12h-4l-3 9L9 3l-3 9H2" />,
+  circle: (p) => <Icon {...p} d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />,
+  arrowRight: (p) => <Icon {...p} d={['M5 12h14','M12 5l7 7-7 7']} />,
+  send: (p) => <Icon {...p} d={['M22 2L11 13','M22 2l-7 20-4-9-9-4 20-7z']} />,
+  checkCircle: (p) => <Icon {...p} d={['M22 11.08V12a10 10 0 1 1-5.93-9.14','M22 4L12 14.01l-3-3']} />,
+  fileText: (p) => <Icon {...p} d={['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z','M14 2v6h6','M16 13H8','M16 17H8','M10 9H8']} />,
+  settings: (p) => <Icon {...p} d={['M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z','M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z']} />,
+  download: (p) => <Icon {...p} d={['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4','M7 10l5 5 5-5','M12 15V3']} />,
+  hexagon: (p) => <Icon {...p} d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" strokeWidth={2.5} />,
+  workflow: (p) => <Icon {...p} d={['M3 3h6v6H3z','M15 3h6v6h-6z','M15 15h6v6h-6z','M3 15h6v6H3z','M9 6h6','M6 9v6','M18 9v6','M9 18h6']} />,
+  shield: (p) => <Icon {...p} d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+  package: (p) => <Icon {...p} d={['M16.5 9.4l-9-5.19','M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z','M3.27 6.96L12 12.01l8.73-5.05','M12 22.08V12']} />,
+  gauge: (p) => <Icon {...p} d={['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z','M12 6v6l4 2']} />,
+  externalLink: (p) => <Icon {...p} d={['M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6','M15 3h6v6','M10 14L21 3']} />,
+  x: (p) => <Icon {...p} d={['M18 6L6 18','M6 6l12 12']} />,
+};
+
+// Icon wrappers for cleaner usage
+const I = {};
+Object.keys(icons).forEach(k => { I[k] = (props = {}) => icons[k](props); });
+
+const monoFont = "'JetBrains Mono', monospace";
+const font = "'DM Sans', sans-serif";
+
+// ─── DATA MODEL ──────────────────────────────────────────────────────────────
+
+const ELEMENT_TYPES = {
+  block: { label: 'Block', icon: 'box', color: '#2563eb' },
+  activity: { label: 'Activity', icon: 'activity', color: '#7c3aed' },
+  requirement: { label: 'Requirement', icon: 'target', color: '#dc2626' },
+  interface: { label: 'Interface', icon: 'workflow', color: '#059669' },
+  package: { label: 'Package', icon: 'package', color: '#d97706' },
+  state: { label: 'State', icon: 'circle', color: '#0891b2' },
+  sequence: { label: 'Sequence', icon: 'arrowRight', color: '#7c3aed' },
+  constraint: { label: 'Constraint', icon: 'shield', color: '#be185d' },
+};
+
+const STATUS = {
+  draft: { label: 'Draft', color: '#6b7280', bg: '#f3f4f6' },
+  in_review: { label: 'In Review', color: '#d97706', bg: '#fef3c7' },
+  approved: { label: 'Approved', color: '#059669', bg: '#d1fae5' },
+  rejected: { label: 'Rejected', color: '#dc2626', bg: '#fee2e2' },
+};
+
+const TASK_STATUS = {
+  backlog: { label: 'Backlog', color: '#6b7280' },
+  todo: { label: 'To Do', color: '#2563eb' },
+  in_progress: { label: 'In Progress', color: '#d97706' },
+  done: { label: 'Done', color: '#059669' },
+};
+
+const PRIORITIES = { low: '↓ Low', medium: '→ Medium', high: '↑ High', critical: '⚠ Critical' };
+
+const DIAGRAM_TYPES = [
+  { id: 'bdd', label: 'Block Definition', icon: 'box' },
+  { id: 'ibd', label: 'Internal Block', icon: 'layers' },
+  { id: 'act', label: 'Activity', icon: 'activity' },
+  { id: 'seq', label: 'Sequence', icon: 'arrowRight' },
+  { id: 'stm', label: 'State Machine', icon: 'circle' },
+  { id: 'par', label: 'Parametric', icon: 'gauge' },
+  { id: 'pkg', label: 'Package', icon: 'package' },
+  { id: 'req', label: 'Requirements', icon: 'target' },
+];
+
+const EIcon = ({ type, size = 14, color }) => {
+  const t = ELEMENT_TYPES[type];
+  const iconKey = t?.icon || 'box';
+  return icons[iconKey] ? icons[iconKey]({ size, color: color || t?.color || '#6b7280' }) : I.box({ size, color });
+};
+
+// ─── SEED DATA ───────────────────────────────────────────────────────────────
+
+const seedElements = [
+  { id: 'el-001', name: 'Satellite System', type: 'block', status: 'approved', parent: null, description: 'Top-level satellite system architecture', x: 400, y: 100 },
+  { id: 'el-002', name: 'Propulsion Subsystem', type: 'block', status: 'approved', parent: 'el-001', description: 'Chemical and electric propulsion for orbit maintenance', x: 150, y: 280 },
+  { id: 'el-003', name: 'Communications Subsystem', type: 'block', status: 'approved', parent: 'el-001', description: 'S-band and Ka-band communication links', x: 400, y: 280 },
+  { id: 'el-004', name: 'Power Subsystem', type: 'block', status: 'in_review', parent: 'el-001', description: 'Solar array and battery power distribution', x: 650, y: 280 },
+  { id: 'el-005', name: 'ADCS', type: 'block', status: 'approved', parent: 'el-001', description: 'Attitude Determination and Control System', x: 150, y: 460 },
+  { id: 'el-006', name: 'Payload', type: 'block', status: 'draft', parent: 'el-001', description: 'Earth observation imaging payload', x: 400, y: 460 },
+  { id: 'el-007', name: 'Thermal Control', type: 'block', status: 'in_review', parent: 'el-001', description: 'Passive and active thermal management', x: 650, y: 460 },
+  { id: 'el-008', name: 'Ground Segment Interface', type: 'interface', status: 'approved', parent: 'el-003', description: 'Ground station uplink/downlink interface', x: 400, y: 640 },
+  { id: 'el-009', name: 'Power Bus Interface', type: 'interface', status: 'approved', parent: 'el-004', description: 'Primary 28V regulated power bus', x: 650, y: 640 },
+  { id: 'el-010', name: 'Launch Operations', type: 'activity', status: 'draft', parent: null, description: 'Pre-launch through orbit insertion activity flow', x: 200, y: 200 },
+  { id: 'el-011', name: 'Normal Mode', type: 'state', status: 'approved', parent: null, description: 'Nominal operational state', x: 300, y: 200 },
+  { id: 'el-012', name: 'Safe Mode', type: 'state', status: 'approved', parent: null, description: 'Autonomous safe hold state', x: 500, y: 200 },
+];
+
+const LEVELS = {
+  1: { label: 'L1', name: 'Mission', color: '#7c3aed', bg: '#f5f3ff', desc: 'Mission-level objectives' },
+  2: { label: 'L2', name: 'System', color: '#2563eb', bg: '#eff6ff', desc: 'System-level requirements' },
+  3: { label: 'L3', name: 'Subsystem', color: '#0891b2', bg: '#ecfeff', desc: 'Subsystem-level specifications' },
+  4: { label: 'L4', name: 'Component', color: '#d97706', bg: '#fffbeb', desc: 'Component-level design requirements' },
+  5: { label: 'L5', name: 'Part', color: '#dc2626', bg: '#fef2f2', desc: 'Part-level implementation details' },
+};
+
+const seedRequirements = [
+  // ── L1: Mission ──
+  { id: 'req-001', title: 'Earth Observation Mission', level: 1, description: 'The LEO-SAT system shall provide continuous high-resolution Earth observation imagery for commercial and government customers', priority: 'critical', status: 'approved', parent: null, verificationMethod: 'analysis', linkedElements: ['el-001'] },
+  { id: 'req-002', title: 'Operational Availability', level: 1, description: 'The satellite system shall achieve 95% operational availability over mission lifetime', priority: 'critical', status: 'approved', parent: null, verificationMethod: 'analysis', linkedElements: ['el-001'] },
+
+  // ── L2: System (children of L1) ──
+  { id: 'req-010', title: 'System Mass Constraint', level: 2, description: 'Total satellite wet mass shall not exceed 500 kg', priority: 'critical', status: 'approved', parent: 'req-001', verificationMethod: 'analysis', linkedElements: ['el-001'] },
+  { id: 'req-011', title: 'Orbit Lifetime', level: 2, description: 'The satellite shall maintain operational orbit for minimum 7 years', priority: 'high', status: 'approved', parent: 'req-002', verificationMethod: 'analysis', linkedElements: ['el-001', 'el-002'] },
+  { id: 'req-012', title: 'Imaging Performance', level: 2, description: 'The system shall deliver imagery with ground sample distance of 0.5m or better', priority: 'critical', status: 'approved', parent: 'req-001', verificationMethod: 'demonstration', linkedElements: ['el-006'] },
+  { id: 'req-013', title: 'Data Delivery', level: 2, description: 'The system shall downlink acquired imagery within 4 hours of capture', priority: 'high', status: 'in_review', parent: 'req-001', verificationMethod: 'test', linkedElements: ['el-003'] },
+  { id: 'req-014', title: 'Safe Mode Transition', level: 2, description: 'System shall autonomously enter safe mode within 30 seconds of anomaly detection', priority: 'critical', status: 'approved', parent: 'req-002', verificationMethod: 'test', linkedElements: ['el-001', 'el-012'] },
+
+  // ── L3: Subsystem (children of L2) ──
+  { id: 'req-020', title: 'Propulsion Delta-V', level: 3, description: 'Propulsion subsystem shall provide minimum 150 m/s delta-V for orbit maintenance', priority: 'high', status: 'approved', parent: 'req-011', verificationMethod: 'test', linkedElements: ['el-002'] },
+  { id: 'req-021', title: 'Power Generation', level: 3, description: 'Solar array shall generate minimum 2.5 kW at end of life', priority: 'critical', status: 'approved', parent: 'req-011', verificationMethod: 'analysis', linkedElements: ['el-004'] },
+  { id: 'req-022', title: 'Downlink Data Rate', level: 3, description: 'Communications shall support minimum 100 Mbps Ka-band downlink', priority: 'high', status: 'in_review', parent: 'req-013', verificationMethod: 'test', linkedElements: ['el-003', 'el-008'] },
+  { id: 'req-023', title: 'Pointing Accuracy', level: 3, description: 'ADCS shall maintain 0.1 degree pointing accuracy in normal mode', priority: 'high', status: 'approved', parent: 'req-012', verificationMethod: 'test', linkedElements: ['el-005'] },
+  { id: 'req-024', title: 'Optical Payload Performance', level: 3, description: 'Payload telescope shall achieve diffraction-limited performance at 550nm', priority: 'critical', status: 'draft', parent: 'req-012', verificationMethod: 'demonstration', linkedElements: ['el-006'] },
+  { id: 'req-025', title: 'Thermal Operating Range', level: 3, description: 'All subsystems shall operate within -20C to +50C', priority: 'medium', status: 'approved', parent: 'req-011', verificationMethod: 'test', linkedElements: ['el-007'] },
+  { id: 'req-026', title: 'FDIR Response Time', level: 3, description: 'Fault detection isolation and recovery shall complete within 15 seconds', priority: 'critical', status: 'approved', parent: 'req-014', verificationMethod: 'test', linkedElements: ['el-001', 'el-012'] },
+
+  // ── L4: Component (children of L3) ──
+  { id: 'req-030', title: 'Thruster Specific Impulse', level: 4, description: 'Ion thruster shall provide minimum 1500s specific impulse', priority: 'high', status: 'approved', parent: 'req-020', verificationMethod: 'test', linkedElements: ['el-002'] },
+  { id: 'req-031', title: 'Battery Capacity', level: 4, description: 'Battery shall provide 1.2 kWh capacity with 80% depth of discharge', priority: 'high', status: 'in_review', parent: 'req-021', verificationMethod: 'test', linkedElements: ['el-004'] },
+  { id: 'req-032', title: 'Power Bus Regulation', level: 4, description: 'Power bus shall maintain 28V plus/minus 2V under all load conditions', priority: 'high', status: 'in_review', parent: 'req-021', verificationMethod: 'test', linkedElements: ['el-009'] },
+  { id: 'req-033', title: 'Ka-Band Antenna Gain', level: 4, description: 'Ka-band antenna shall provide minimum 38 dBi gain at boresight', priority: 'high', status: 'in_review', parent: 'req-022', verificationMethod: 'test', linkedElements: ['el-003'] },
+  { id: 'req-034', title: 'Ground Interface Protocol', level: 4, description: 'Ground interface shall comply with CCSDS standards for telemetry and telecommand', priority: 'medium', status: 'approved', parent: 'req-022', verificationMethod: 'inspection', linkedElements: ['el-008'] },
+  { id: 'req-035', title: 'Star Tracker Accuracy', level: 4, description: 'Star tracker shall provide 2 arcsecond cross-boresight accuracy', priority: 'high', status: 'approved', parent: 'req-023', verificationMethod: 'test', linkedElements: ['el-005'] },
+  { id: 'req-036', title: 'Primary Mirror Diameter', level: 4, description: 'Telescope primary mirror shall be minimum 400mm clear aperture', priority: 'critical', status: 'draft', parent: 'req-024', verificationMethod: 'inspection', linkedElements: ['el-006'] },
+  { id: 'req-037', title: 'MLI Blanket Performance', level: 4, description: 'Multi-layer insulation shall achieve effective emittance below 0.02', priority: 'medium', status: 'approved', parent: 'req-025', verificationMethod: 'test', linkedElements: ['el-007'] },
+  { id: 'req-038', title: 'Watchdog Timer Response', level: 4, description: 'Hardware watchdog shall trigger safe mode if no heartbeat within 5 seconds', priority: 'critical', status: 'approved', parent: 'req-026', verificationMethod: 'test', linkedElements: ['el-001'] },
+
+  // ── L5: Part (children of L4) ──
+  { id: 'req-040', title: 'Xenon Tank Pressure Rating', level: 5, description: 'Xenon propellant tank shall be rated for 200 bar MEOP with 1.5x safety factor', priority: 'high', status: 'approved', parent: 'req-030', verificationMethod: 'test', linkedElements: ['el-002'] },
+  { id: 'req-041', title: 'Thruster Grid Material', level: 5, description: 'Ion thruster grid shall be molybdenum with 0.5mm minimum thickness', priority: 'medium', status: 'draft', parent: 'req-030', verificationMethod: 'inspection', linkedElements: ['el-002'] },
+  { id: 'req-042', title: 'Battery Cell Chemistry', level: 5, description: 'Battery cells shall be Li-ion NMC with minimum 260 Wh/kg specific energy', priority: 'high', status: 'in_review', parent: 'req-031', verificationMethod: 'test', linkedElements: ['el-004'] },
+  { id: 'req-043', title: 'DC-DC Converter Efficiency', level: 5, description: 'Main bus DC-DC converter shall achieve 96% minimum efficiency at full load', priority: 'medium', status: 'approved', parent: 'req-032', verificationMethod: 'test', linkedElements: ['el-009'] },
+  { id: 'req-044', title: 'Feed Horn Polarization', level: 5, description: 'Ka-band feed horn shall support dual circular polarization with 30dB isolation', priority: 'medium', status: 'approved', parent: 'req-033', verificationMethod: 'test', linkedElements: ['el-003'] },
+  { id: 'req-045', title: 'CCD Sensor Pixel Pitch', level: 5, description: 'Focal plane CCD shall have 7 micron pixel pitch with 85% quantum efficiency', priority: 'critical', status: 'draft', parent: 'req-036', verificationMethod: 'inspection', linkedElements: ['el-006'] },
+  { id: 'req-046', title: 'Mirror Substrate Material', level: 5, description: 'Primary mirror substrate shall be Zerodur with CTE below 0.05 ppm/K', priority: 'high', status: 'approved', parent: 'req-036', verificationMethod: 'inspection', linkedElements: ['el-006'] },
+  { id: 'req-047', title: 'FPGA Watchdog Register', level: 5, description: 'Watchdog FPGA register shall be triple-modular-redundant with majority voting', priority: 'critical', status: 'approved', parent: 'req-038', verificationMethod: 'test', linkedElements: ['el-001'] },
+];
+
+const seedTasks = [
+  { id: 'task-001', title: 'Finalize propulsion trade study', status: 'done', priority: 'high', assignee: 'Sarah Chen', linkedRequirements: ['req-020', 'req-030'], description: 'Complete trade study between chemical and electric propulsion options' },
+  { id: 'task-002', title: 'Communications link budget analysis', status: 'in_progress', priority: 'high', assignee: 'Marcus Williams', linkedRequirements: ['req-022', 'req-033'], description: 'Perform end-to-end link budget for Ka-band downlink' },
+  { id: 'task-003', title: 'Solar array sizing', status: 'in_progress', priority: 'critical', assignee: 'Emily Rodriguez', linkedRequirements: ['req-021', 'req-031'], description: 'Size solar arrays for EOL power requirements' },
+  { id: 'task-004', title: 'ADCS sensor selection', status: 'todo', priority: 'high', assignee: 'James Park', linkedRequirements: ['req-023', 'req-035'], description: 'Evaluate star tracker and sun sensor options' },
+  { id: 'task-005', title: 'Payload optical design review', status: 'todo', priority: 'critical', assignee: 'Sarah Chen', linkedRequirements: ['req-024', 'req-036', 'req-045'], description: 'Review optical telescope assembly design' },
+  { id: 'task-006', title: 'Thermal model development', status: 'backlog', priority: 'medium', assignee: 'Alex Kim', linkedRequirements: ['req-025', 'req-037'], description: 'Build thermal mathematical model in ESATAN' },
+  { id: 'task-007', title: 'Safe mode logic definition', status: 'in_progress', priority: 'critical', assignee: 'Marcus Williams', linkedRequirements: ['req-014', 'req-026', 'req-038'], description: 'Define safe mode entry/exit criteria and autonomous responses' },
+  { id: 'task-008', title: 'Ground segment ICD update', status: 'todo', priority: 'medium', assignee: 'Emily Rodriguez', linkedRequirements: ['req-034'], description: 'Update Interface Control Document for CCSDS compliance' },
+  { id: 'task-009', title: 'Mass budget update', status: 'in_progress', priority: 'high', assignee: 'James Park', linkedRequirements: ['req-010'], description: 'Update system mass budget with latest subsystem estimates' },
+  { id: 'task-010', title: 'Power bus regulation testing', status: 'backlog', priority: 'high', assignee: 'Alex Kim', linkedRequirements: ['req-032', 'req-043'], description: 'Design test procedure for bus voltage regulation' },
+];
+
+const seedEdges = [
+  { id: 'e-001', from: 'el-001', to: 'el-002', type: 'composition', label: 'contains' },
+  { id: 'e-002', from: 'el-001', to: 'el-003', type: 'composition', label: 'contains' },
+  { id: 'e-003', from: 'el-001', to: 'el-004', type: 'composition', label: 'contains' },
+  { id: 'e-004', from: 'el-001', to: 'el-005', type: 'composition', label: 'contains' },
+  { id: 'e-005', from: 'el-001', to: 'el-006', type: 'composition', label: 'contains' },
+  { id: 'e-006', from: 'el-001', to: 'el-007', type: 'composition', label: 'contains' },
+  { id: 'e-007', from: 'el-004', to: 'el-002', type: 'dependency', label: 'powers' },
+  { id: 'e-008', from: 'el-004', to: 'el-003', type: 'dependency', label: 'powers' },
+  { id: 'e-009', from: 'el-004', to: 'el-005', type: 'dependency', label: 'powers' },
+  { id: 'e-010', from: 'el-004', to: 'el-006', type: 'dependency', label: 'powers' },
+  { id: 'e-011', from: 'el-005', to: 'el-006', type: 'dependency', label: 'stabilizes' },
+  { id: 'e-012', from: 'el-003', to: 'el-008', type: 'composition', label: 'contains' },
+  { id: 'e-013', from: 'el-004', to: 'el-009', type: 'composition', label: 'contains' },
+  { id: 'e-014', from: 'el-011', to: 'el-012', type: 'transition', label: 'anomaly detected' },
+  { id: 'e-015', from: 'el-012', to: 'el-011', type: 'transition', label: 'recovery complete' },
+];
+
+const seedMessages = [
+  { id: 'm-001', author: 'Sarah Chen', text: 'Propulsion trade study is complete. Recommending electric propulsion for the primary delta-V budget. See req-020 and req-030.', time: '2025-02-10T09:15:00Z', refs: ['req-020', 'req-030', 'task-001'] },
+  { id: 'm-002', author: 'Marcus Williams', text: 'Link budget is looking tight for Ka-band. We may need to revisit the antenna gain requirement req-033.', time: '2025-02-10T10:30:00Z', refs: ['req-022', 'req-033'] },
+  { id: 'm-003', author: 'Emily Rodriguez', text: 'Solar array preliminary sizing shows we need 6.2 sq m to meet EOL requirements. Updating the mass budget.', time: '2025-02-11T08:45:00Z', refs: ['req-021', 'task-003'] },
+  { id: 'm-004', author: 'James Park', text: 'ADCS pointing accuracy of 0.1 deg confirmed achievable with the selected star tracker per req-035.', time: '2025-02-11T14:20:00Z', refs: ['req-023', 'req-035'] },
+  { id: 'm-005', author: 'Alex Kim', text: 'Thermal model boundary conditions defined. Starting steady-state analysis for hot and cold cases.', time: '2025-02-12T11:00:00Z', refs: ['req-025', 'task-006'] },
+  { id: 'm-006', author: 'Sarah Chen', text: 'Payload optical design looking good. GSD target of 0.5m is achievable with current telescope config.', time: '2025-02-12T16:30:00Z', refs: ['req-012', 'req-024', 'task-005'] },
+];
+
+const seedDiagrams = [
+  { id: 'diag-001', name: 'System Architecture BDD', type: 'bdd', elements: ['el-001', 'el-002', 'el-003', 'el-004', 'el-005', 'el-006', 'el-007'], edges: ['e-001', 'e-002', 'e-003', 'e-004', 'e-005', 'e-006'] },
+  { id: 'diag-002', name: 'Power Distribution IBD', type: 'ibd', elements: ['el-004', 'el-002', 'el-003', 'el-005', 'el-006', 'el-009'], edges: ['e-007', 'e-008', 'e-009', 'e-010', 'e-013'] },
+  { id: 'diag-003', name: 'Operational States STM', type: 'stm', elements: ['el-011', 'el-012'], edges: ['e-014', 'e-015'] },
+  { id: 'diag-004', name: 'System Requirements REQ', type: 'req', elements: [], edges: [] },
+];
+
+const VERSION_LOG = [
+  { id: 'v-001', action: 'Created project workspace', user: 'Sarah Chen', time: '2025-01-15T08:00:00Z' },
+  { id: 'v-002', action: 'Added system architecture BDD', user: 'Sarah Chen', time: '2025-01-16T10:30:00Z' },
+  { id: 'v-003', action: 'Defined top-level requirements', user: 'Marcus Williams', time: '2025-01-17T14:00:00Z' },
+  { id: 'v-004', action: 'Updated power subsystem status to In Review', user: 'Emily Rodriguez', time: '2025-02-01T09:00:00Z' },
+  { id: 'v-005', action: 'Completed propulsion trade study task', user: 'Sarah Chen', time: '2025-02-10T09:15:00Z' },
+  { id: 'v-006', action: 'Added operational states diagram', user: 'James Park', time: '2025-02-11T14:20:00Z' },
+];
+
+// ─── UTILITY ─────────────────────────────────────────────────────────────────
+
+const genId = () => `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const formatDate = (iso) => {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+// ─── UI PRIMITIVES ───────────────────────────────────────────────────────────
+
+const Badge = ({ children, color = '#6b7280', bg = '#f3f4f6', style }) => (
+  <span style={{
+    display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 99,
+    fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', color, background: bg,
+    lineHeight: '18px', whiteSpace: 'nowrap', ...style
+  }}>{children}</span>
+);
+
+const StatusBadge = ({ status, map = STATUS }) => {
+  const s = map[status];
+  return s ? <Badge color={s.color} bg={s.bg || (s.color + '15')}>{s.label}</Badge> : <Badge>{status}</Badge>;
+};
+
+const Btn = ({ children, variant = 'default', size = 'sm', onClick, disabled, style, icon }) => {
+  const vars = {
+    primary: { bg: 'var(--accent)', color: '#fff', border: 'var(--accent)', hoverBg: 'var(--accent-hover)' },
+    default: { bg: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'var(--border)', hoverBg: 'var(--bg-tertiary)' },
+    ghost: { bg: 'transparent', color: 'var(--text-secondary)', border: 'transparent', hoverBg: 'var(--bg-tertiary)' },
+    danger: { bg: 'var(--danger-bg)', color: 'var(--danger)', border: '#fecaca', hoverBg: '#fee2e2' },
+  };
+  const v = vars[variant] || vars.default;
+  const sz = size === 'xs' ? { padding: '4px 8px', fontSize: 11 } : size === 'sm' ? { padding: '6px 12px', fontSize: 12 } : { padding: '8px 16px', fontSize: 13 };
+  const IconEl = icon ? icons[icon] : null;
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 'var(--radius-sm)',
+      border: `1px solid ${v.border}`, background: v.bg, color: v.color, fontWeight: 500,
+      cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1,
+      fontFamily: font, transition: 'all 0.15s', ...sz, ...style
+    }}
+    onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = v.hoverBg; }}
+    onMouseLeave={e => { e.currentTarget.style.background = v.bg; }}
+    >
+      {IconEl && IconEl({ size: size === 'xs' ? 12 : 14 })}
+      {children}
+    </button>
+  );
+};
+
+const Panel = ({ children, style }) => (
+  <div style={{
+    background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', ...style
+  }}>{children}</div>
+);
+
+const SectionTitle = ({ children, action, style }) => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, ...style }}>
+    <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{children}</h3>
+    {action}
+  </div>
+);
+
+const EmptyState = ({ icon, title, subtitle, action }) => (
+  <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-tertiary)' }}>
+    {icon && icons[icon] && <div style={{ margin: '0 auto 12px', opacity: 0.4 }}>{icons[icon]({ size: 32 })}</div>}
+    <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}>{title}</div>
+    {subtitle && <div style={{ fontSize: 12, marginBottom: 16 }}>{subtitle}</div>}
+    {action}
+  </div>
+);
+
+const Tabs = ({ tabs, active, onChange, style }) => (
+  <div style={{ display: 'flex', gap: 2, background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', padding: 2, ...style }}>
+    {tabs.map(t => (
+      <button key={t.id} onClick={() => onChange(t.id)} style={{
+        padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius-sm)',
+        border: 'none', cursor: 'pointer', fontFamily: font, transition: 'all 0.15s',
+        background: active === t.id ? 'var(--bg-secondary)' : 'transparent',
+        color: active === t.id ? 'var(--text-primary)' : 'var(--text-tertiary)',
+        boxShadow: active === t.id ? 'var(--shadow-sm)' : 'none',
+      }}>{t.label}</button>
+    ))}
+  </div>
+);
+
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+
+const Dashboard = ({ elements, requirements, tasks, diagrams, messages }) => {
+  const reqByStatus = {};
+  requirements.forEach(r => { reqByStatus[r.status] = (reqByStatus[r.status] || 0) + 1; });
+  const taskByStatus = {};
+  tasks.forEach(t => { taskByStatus[t.status] = (taskByStatus[t.status] || 0) + 1; });
+
+  const stats = [
+    { label: 'System Elements', value: elements.length, icon: 'box', color: '#2563eb' },
+    { label: 'Requirements', value: requirements.length, icon: 'target', color: '#dc2626' },
+    { label: 'Tasks', value: tasks.length, icon: 'kanban', color: '#d97706' },
+    { label: 'Diagrams', value: diagrams.length, icon: 'layers', color: '#7c3aed' },
+  ];
+
+  const verMethods = {};
+  requirements.forEach(r => { verMethods[r.verificationMethod] = (verMethods[r.verificationMethod] || 0) + 1; });
+
+  return (
+    <div className="fade-in" style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>LEO-SAT Mission</h2>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Low Earth Orbit Satellite — Systems Engineering Workspace</p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+        {stats.map(s => (
+          <Panel key={s.label} style={{ padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>{s.label}</span>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: s.color + '10', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {icons[s.icon] && icons[s.icon]({ size: 16, color: s.color })}
+              </div>
+            </div>
+            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>{s.value}</div>
+          </Panel>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+        <Panel style={{ padding: 20 }}>
+          <SectionTitle>Requirements Coverage</SectionTitle>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {Object.entries(reqByStatus).map(([k, v]) => (
+              <div key={k} style={{ flex: '1 1 45%', padding: 12, borderRadius: 'var(--radius-sm)', background: STATUS[k]?.bg || '#f3f4f6' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: STATUS[k]?.color || '#6b7280' }}>{v}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500, marginTop: 2 }}>{STATUS[k]?.label || k}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>
+              <span>Approved</span><span>{Math.round(((reqByStatus.approved || 0) / requirements.length) * 100)}%</span>
+            </div>
+            <div style={{ height: 6, background: 'var(--bg-tertiary)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${((reqByStatus.approved || 0) / requirements.length) * 100}%`, background: 'var(--success)', borderRadius: 3 }} />
+            </div>
+          </div>
+        </Panel>
+
+        <Panel style={{ padding: 20 }}>
+          <SectionTitle>Task Progress</SectionTitle>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {Object.entries(TASK_STATUS).map(([k, v]) => (
+              <div key={k} style={{ flex: '1 1 45%', padding: 12, borderRadius: 'var(--radius-sm)', background: v.color + '10' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: v.color }}>{taskByStatus[k] || 0}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500, marginTop: 2 }}>{v.label}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>
+              <span>Completed</span><span>{Math.round(((taskByStatus.done || 0) / tasks.length) * 100)}%</span>
+            </div>
+            <div style={{ height: 6, background: 'var(--bg-tertiary)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${((taskByStatus.done || 0) / tasks.length) * 100}%`, background: 'var(--success)', borderRadius: 3 }} />
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <Panel style={{ padding: 20 }}>
+          <SectionTitle>Verification Methods</SectionTitle>
+          {Object.entries(verMethods).map(([method, count]) => (
+            <div key={method} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+              <span style={{ fontSize: 13, fontWeight: 500, textTransform: 'capitalize' }}>{method}</span>
+              <Badge color="var(--accent)" bg="var(--accent-light)">{count}</Badge>
+            </div>
+          ))}
+        </Panel>
+        <Panel style={{ padding: 20, maxHeight: 260, overflow: 'auto' }}>
+          <SectionTitle>Recent Activity</SectionTitle>
+          {VERSION_LOG.slice().reverse().map(v => (
+            <div key={v.id} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+              <div style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--accent)', marginTop: 6, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 500 }}>{v.action}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{v.user} · {formatDate(v.time)}</div>
+              </div>
+            </div>
+          ))}
+        </Panel>
+      </div>
+    </div>
+  );
+};
+
+// ─── DIAGRAM EDITOR ──────────────────────────────────────────────────────────
+
+const DiagramEditor = ({ elements, setElements, edges, setEdges, diagrams, requirements, selectedElement, setSelectedElement }) => {
+  const [activeDiagram, setActiveDiagram] = useState(diagrams[0]?.id);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPanState] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(null);
+  const [panning, setPanning] = useState(null);
+  const [connecting, setConnecting] = useState(null);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const svgRef = useRef(null);
+
+  const diagram = diagrams.find(d => d.id === activeDiagram);
+  const diagramElements = diagram ? elements.filter(el => diagram.elements.includes(el.id)) : elements;
+  const diagramEdges = diagram ? edges.filter(e => diagram.edges.includes(e.id)) : edges;
+
+  const addElement = (type) => {
+    const newEl = { id: genId(), name: `New ${ELEMENT_TYPES[type].label}`, type, status: 'draft', parent: null, description: '', x: 300 + Math.random() * 200, y: 200 + Math.random() * 200 };
+    setElements(prev => [...prev, newEl]);
+    if (diagram) diagram.elements.push(newEl.id);
+    setSelectedElement(newEl.id);
+    setShowAddMenu(false);
+  };
+
+  const completeConnect = (toId) => {
+    if (connecting && connecting.from !== toId) {
+      const newEdge = { id: genId(), from: connecting.from, to: toId, type: 'dependency', label: '' };
+      setEdges(prev => [...prev, newEdge]);
+      if (diagram) diagram.edges.push(newEdge.id);
+    }
+    setConnecting(null);
+  };
+
+  const deleteSelected = () => {
+    if (!selectedElement) return;
+    setElements(prev => prev.filter(el => el.id !== selectedElement));
+    setEdges(prev => prev.filter(e => e.from !== selectedElement && e.to !== selectedElement));
+    setSelectedElement(null);
+  };
+
+  useEffect(() => {
+    const handleMove = (e) => {
+      if (dragging) {
+        const dx = (e.clientX - dragging.sx) / zoom;
+        const dy = (e.clientY - dragging.sy) / zoom;
+        setElements(prev => prev.map(el => el.id === dragging.id ? { ...el, x: dragging.ox + dx, y: dragging.oy + dy } : el));
+      } else if (panning) {
+        setPanState({ x: panning.opx + (e.clientX - panning.sx), y: panning.opy + (e.clientY - panning.sy) });
+      }
+    };
+    const handleUp = () => { setDragging(null); setPanning(null); };
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => { window.removeEventListener('mousemove', handleMove); window.removeEventListener('mouseup', handleUp); };
+  }, [dragging, panning, zoom]);
+
+  const selEl = elements.find(e => e.id === selectedElement);
+
+  return (
+    <div className="fade-in" style={{ display: 'flex', height: '100%' }}>
+      <div style={{ width: 240, borderRight: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Diagrams</div>
+          {diagrams.map(d => {
+            const DT = DIAGRAM_TYPES.find(t => t.id === d.type);
+            return (
+              <div key={d.id} onClick={() => setActiveDiagram(d.id)} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer', marginBottom: 2, fontSize: 12, fontWeight: 500,
+                background: activeDiagram === d.id ? 'var(--accent-light)' : 'transparent',
+                color: activeDiagram === d.id ? 'var(--accent)' : 'var(--text-secondary)',
+              }}>
+                {DT && icons[DT.icon] && icons[DT.icon]({ size: 14 })}
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ padding: '12px 16px', flex: 1, overflow: 'auto' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Elements</div>
+          {diagramElements.map(el => (
+            <div key={el.id} onClick={() => setSelectedElement(el.id)} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer', marginBottom: 1, fontSize: 12,
+              background: selectedElement === el.id ? 'var(--accent-light)' : 'transparent',
+              color: selectedElement === el.id ? 'var(--accent)' : 'var(--text-primary)',
+              fontWeight: selectedElement === el.id ? 500 : 400,
+            }}>
+              <EIcon type={el.type} size={12} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{el.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ height: 44, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8, background: 'var(--bg-secondary)' }}>
+          <div style={{ position: 'relative' }}>
+            <Btn icon="plus" variant="primary" size="xs" onClick={() => setShowAddMenu(!showAddMenu)}>Add Element</Btn>
+            {showAddMenu && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)', zIndex: 50, width: 180, padding: 4 }}>
+                {Object.entries(ELEMENT_TYPES).map(([k, v]) => (
+                  <div key={k} onClick={() => addElement(k)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <EIcon type={k} size={14} /> {v.label}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedElement && (
+            <>
+              <Btn icon="link2" size="xs" onClick={() => setConnecting(connecting ? null : { from: selectedElement })}>{connecting ? 'Click target...' : 'Connect'}</Btn>
+              <Btn icon="trash" variant="danger" size="xs" onClick={deleteSelected}>Delete</Btn>
+            </>
+          )}
+          {connecting && <Btn size="xs" onClick={() => setConnecting(null)}>Cancel</Btn>}
+          <div style={{ flex: 1 }} />
+          <Btn icon="zoomOut" variant="ghost" size="xs" onClick={() => setZoom(z => Math.max(0.3, z - 0.15))} />
+          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', width: 40, textAlign: 'center', fontFamily: monoFont }}>{Math.round(zoom * 100)}%</span>
+          <Btn icon="zoomIn" variant="ghost" size="xs" onClick={() => setZoom(z => Math.min(2.5, z + 0.15))} />
+          <Btn icon="maximize" variant="ghost" size="xs" onClick={() => { setZoom(1); setPanState({ x: 0, y: 0 }); }} />
+        </div>
+
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: 'var(--bg-primary)' }}>
+          <svg ref={svgRef} style={{ width: '100%', height: '100%', cursor: panning ? 'grabbing' : connecting ? 'crosshair' : 'grab' }}
+            onMouseDown={e => {
+              if (e.target === svgRef.current || e.target.tagName === 'rect' || e.target.tagName === 'circle') {
+                setSelectedElement(null);
+                setPanning({ sx: e.clientX, sy: e.clientY, opx: pan.x, opy: pan.y });
+              }
+            }}>
+            <defs>
+              <pattern id="dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                <circle cx="12" cy="12" r="0.8" fill="#d1d5db" />
+              </pattern>
+              <marker id="arr-dep" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2563eb" /></marker>
+              <marker id="arr-comp" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#059669" /></marker>
+              <marker id="arr-trans" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7c3aed" /></marker>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#dot-grid)" />
+            <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
+              {diagramEdges.map(edge => {
+                const from = elements.find(el => el.id === edge.from);
+                const to = elements.find(el => el.id === edge.to);
+                if (!from || !to) return null;
+                const isComp = edge.type === 'composition';
+                const isTrans = edge.type === 'transition';
+                const col = isComp ? '#059669' : isTrans ? '#7c3aed' : '#2563eb';
+                const dash = edge.type === 'dependency' ? '6,3' : 'none';
+                const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+                return (
+                  <g key={edge.id}>
+                    <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={col} strokeWidth={1.5} strokeDasharray={dash} markerEnd={`url(#arr-${isComp ? 'comp' : isTrans ? 'trans' : 'dep'})`} opacity={0.6} />
+                    {edge.label && <text x={mid.x} y={mid.y - 6} textAnchor="middle" fill="#8b9099" fontSize={10} fontFamily={font}>{edge.label}</text>}
+                  </g>
+                );
+              })}
+              {diagramElements.map(el => {
+                const typeInfo = ELEMENT_TYPES[el.type];
+                const isSelected = selectedElement === el.id;
+                const w = 160, h = 72;
+                return (
+                  <g key={el.id} className="diagram-node" transform={`translate(${el.x - w/2}, ${el.y - h/2})`}
+                    onMouseDown={e => {
+                      e.stopPropagation();
+                      if (connecting) { completeConnect(el.id); return; }
+                      setSelectedElement(el.id);
+                      setDragging({ id: el.id, sx: e.clientX, sy: e.clientY, ox: el.x, oy: el.y });
+                    }}>
+                    <foreignObject width={w} height={h}>
+                      <div style={{
+                        width: w, height: h, borderRadius: 10,
+                        border: `2px solid ${isSelected ? (typeInfo?.color || 'var(--accent)') : 'var(--border)'}`,
+                        background: 'var(--bg-secondary)',
+                        boxShadow: isSelected ? `0 0 0 3px ${(typeInfo?.color || 'var(--accent)') + '20'}` : 'var(--shadow-sm)',
+                        padding: '10px 12px', cursor: 'grab', display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <div style={{ width: 20, height: 20, borderRadius: 4, background: (typeInfo?.color || '#6b7280') + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <EIcon type={el.type} size={11} />
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{el.name}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 9, fontFamily: monoFont, color: 'var(--text-tertiary)' }}>{el.id}</span>
+                          <StatusBadge status={el.status} />
+                        </div>
+                      </div>
+                    </foreignObject>
+                  </g>
+                );
+              })}
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div style={{ width: 280, borderLeft: '1px solid var(--border)', background: 'var(--bg-secondary)', overflow: 'auto' }}>
+        <div style={{ padding: 16, borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Properties</div>
+        </div>
+        {selEl ? (
+          <div style={{ padding: 16 }} className="fade-in">
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Name</label>
+              <input value={selEl.name} onChange={e => setElements(prev => prev.map(el => el.id === selectedElement ? { ...el, name: e.target.value } : el))}
+                style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 13, outline: 'none' }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Type</label>
+              <select value={selEl.type} onChange={e => setElements(prev => prev.map(el => el.id === selectedElement ? { ...el, type: e.target.value } : el))}
+                style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 13, background: 'var(--bg-secondary)' }}>
+                {Object.entries(ELEMENT_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Status</label>
+              <select value={selEl.status} onChange={e => setElements(prev => prev.map(el => el.id === selectedElement ? { ...el, status: e.target.value } : el))}
+                style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 13, background: 'var(--bg-secondary)' }}>
+                {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Description</label>
+              <textarea value={selEl.description || ''} onChange={e => setElements(prev => prev.map(el => el.id === selectedElement ? { ...el, description: e.target.value } : el))}
+                rows={3} style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 12, resize: 'vertical', outline: 'none', fontFamily: font }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>ID</label>
+              <div style={{ fontSize: 12, fontFamily: monoFont, color: 'var(--text-secondary)', padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)' }}>{selEl.id}</div>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: 8 }}>Linked Requirements</label>
+              {requirements.filter(r => r.linkedElements?.includes(selectedElement)).map(r => (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', marginBottom: 4, fontSize: 11 }}>
+                  {I.target({ size: 10, color: '#dc2626' })}
+                  <span style={{ fontWeight: 500 }}>{r.title}</span>
+                </div>
+              ))}
+              {requirements.filter(r => r.linkedElements?.includes(selectedElement)).length === 0 && (
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>No linked requirements</div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <EmptyState icon="box" title="No element selected" subtitle="Click an element on the canvas" />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── REQUIREMENTS VIEW ───────────────────────────────────────────────────────
+
+const RequirementsView = ({ requirements, setRequirements, elements, tasks, selectedElement, setSelectedElement }) => {
+  const [expandedReqs, setExpandedReqs] = useState(new Set(requirements.map(r => r.id)));
+  const [selectedReq, setSelectedReq] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [viewMode, setViewMode] = useState('tree');
+
+  const toggleExpand = (id) => { setExpandedReqs(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
+  const rootReqs = requirements.filter(r => !r.parent);
+  const childReqs = (pid) => requirements.filter(r => r.parent === pid);
+  const sel = requirements.find(r => r.id === selectedReq);
+  const getReqLevel = (req) => req.level || 1;
+
+  const filteredRoots = rootReqs.filter(r => {
+    if (filterStatus !== 'all' && r.status !== filterStatus) return false;
+    return true;
+  });
+
+  const expandAll = () => setExpandedReqs(new Set(requirements.map(r => r.id)));
+  const collapseAll = () => setExpandedReqs(new Set());
+  const expandToLevel = (targetLevel) => {
+    const ids = new Set();
+    requirements.forEach(r => { if (getReqLevel(r) < targetLevel) ids.add(r.id); });
+    setExpandedReqs(ids);
+  };
+
+  const levelCounts = {};
+  requirements.forEach(r => { const l = getReqLevel(r); levelCounts[l] = (levelCounts[l] || 0) + 1; });
+
+  // ── Table row ──
+  const ReqRow = ({ req, depth = 0 }) => {
+    const children = childReqs(req.id);
+    const hasChildren = children.length > 0;
+    const isExpanded = expandedReqs.has(req.id);
+    const isSelected = selectedReq === req.id;
+    const linkedEls = elements.filter(el => req.linkedElements?.includes(el.id));
+    const lvl = getReqLevel(req);
+    const lvlInfo = LEVELS[lvl];
+
+    return (
+      <React.Fragment>
+        <tr onClick={() => setSelectedReq(req.id)} style={{ cursor: 'pointer', background: isSelected ? 'var(--accent-light)' : 'transparent', transition: 'background 0.1s' }}
+          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}>
+          <td style={{ padding: '8px 12px', fontSize: 12, fontFamily: monoFont, color: 'var(--text-tertiary)', width: 80 }}>{req.id}</td>
+          <td style={{ padding: '8px 12px', width: 50 }}>
+            <Badge color={lvlInfo?.color || '#6b7280'} bg={(lvlInfo?.color || '#6b7280') + '15'} style={{ fontSize: 10, fontWeight: 700 }}>{lvlInfo?.label || 'L?'}</Badge>
+          </td>
+          <td style={{ padding: '8px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingLeft: depth * 20 }}>
+              {hasChildren ? (
+                <span onClick={e => { e.stopPropagation(); toggleExpand(req.id); }} style={{ cursor: 'pointer', display: 'flex', padding: 2 }}>
+                  {isExpanded ? I.chevronDown({ size: 14, color: 'var(--text-tertiary)' }) : I.chevronRight({ size: 14, color: 'var(--text-tertiary)' })}
+                </span>
+              ) : <span style={{ width: 18 }} />}
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{req.title}</span>
+            </div>
+          </td>
+          <td style={{ padding: '8px 12px' }}><StatusBadge status={req.status} /></td>
+          <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>{PRIORITIES[req.priority]}</td>
+          <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{req.verificationMethod}</td>
+          <td style={{ padding: '8px 12px' }}>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {linkedEls.slice(0, 2).map(el => <Badge key={el.id} color={ELEMENT_TYPES[el.type]?.color} bg={(ELEMENT_TYPES[el.type]?.color || '#6b7280') + '15'}>{el.name}</Badge>)}
+              {linkedEls.length > 2 && <Badge>+{linkedEls.length - 2}</Badge>}
+            </div>
+          </td>
+        </tr>
+        {hasChildren && isExpanded && children.map(c => <ReqRow key={c.id} req={c} depth={depth + 1} />)}
+      </React.Fragment>
+    );
+  };
+
+  // ── Tree node with L1→L5 top-down flow ──
+  const TreeNode = ({ req, isLast = false, parentLines = [] }) => {
+    const children = childReqs(req.id);
+    const hasChildren = children.length > 0;
+    const isExpanded = expandedReqs.has(req.id);
+    const isSelected = selectedReq === req.id;
+    const linkedEls = elements.filter(el => req.linkedElements?.includes(el.id));
+    const linkedTasks = tasks.filter(t => t.linkedRequirements?.includes(req.id));
+    const lvl = getReqLevel(req);
+    const lvlInfo = LEVELS[lvl] || LEVELS[1];
+    const prioColor = req.priority === 'critical' ? '#dc2626' : req.priority === 'high' ? '#d97706' : req.priority === 'medium' ? '#2563eb' : '#6b7280';
+    const depth = lvl - 1;
+
+    return (
+      <div style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'stretch' }}>
+          {/* Connector lines colored per parent level */}
+          {depth > 0 && (
+            <div style={{ display: 'flex', flexShrink: 0 }}>
+              {parentLines.map((showLine, i) => (
+                <div key={i} style={{ width: 32, position: 'relative', flexShrink: 0 }}>
+                  {showLine && <div style={{ position: 'absolute', left: 15, top: 0, bottom: 0, width: 2, background: (LEVELS[i + 1]?.color || '#d1d5db') + '30' }} />}
+                </div>
+              ))}
+              <div style={{ width: 32, position: 'relative', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', left: 15, top: 0, height: isLast ? 36 : '100%', width: 2, background: lvlInfo.color + '30' }} />
+                <div style={{ position: 'absolute', left: 15, top: 35, width: 16, height: 2, background: lvlInfo.color + '30' }} />
+              </div>
+            </div>
+          )}
+
+          {/* Card */}
+          <div style={{ flex: 1, padding: '4px 0', minWidth: 0 }}>
+            <div
+              onClick={() => setSelectedReq(req.id)}
+              style={{
+                background: isSelected ? lvlInfo.bg : 'var(--bg-secondary)',
+                border: '1.5px solid ' + (isSelected ? lvlInfo.color : 'var(--border)'),
+                borderRadius: 10,
+                padding: lvl <= 2 ? '14px 16px' : '10px 14px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: isSelected ? '0 0 0 3px ' + lvlInfo.color + '15' : 'var(--shadow-sm)',
+                position: 'relative',
+                borderLeft: '4px solid ' + lvlInfo.color,
+              }}
+              onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = lvlInfo.color + '80'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; } }}
+              onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.borderLeftColor = lvlInfo.color; } }}
+            >
+              {/* Header: Level + ID + Title + Expand + Status */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: lvl <= 2 ? 8 : 5 }}>
+                <Badge color={lvlInfo.color} bg={lvlInfo.color + '18'} style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.05em', padding: '2px 7px' }}>{lvlInfo.label}</Badge>
+                <span style={{ fontSize: 10, fontFamily: monoFont, color: 'var(--text-tertiary)' }}>{req.id}</span>
+                <span style={{ fontSize: lvl <= 2 ? 14 : 13, fontWeight: lvl <= 2 ? 700 : 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, letterSpacing: lvl === 1 ? '-0.01em' : '0' }}>{req.title}</span>
+                {hasChildren && (
+                  <span onClick={e => { e.stopPropagation(); toggleExpand(req.id); }}
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 6, background: lvlInfo.color + '10', transition: 'background 0.1s', flexShrink: 0 }}
+                    onMouseEnter={e => e.currentTarget.style.background = lvlInfo.color + '20'}
+                    onMouseLeave={e => e.currentTarget.style.background = lvlInfo.color + '10'}>
+                    {isExpanded ? I.chevronDown({ size: 12, color: lvlInfo.color }) : I.chevronRight({ size: 12, color: lvlInfo.color })}
+                  </span>
+                )}
+                <StatusBadge status={req.status} />
+              </div>
+
+              {/* Description */}
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5, marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{req.description}</div>
+
+              {/* Metadata */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <Badge color={prioColor} bg={prioColor + '10'} style={{ fontSize: 10 }}>{PRIORITIES[req.priority]}</Badge>
+                <Badge color="var(--accent)" bg="var(--accent-light)" style={{ fontSize: 10, textTransform: 'capitalize' }}>{req.verificationMethod}</Badge>
+                {linkedEls.length > 0 && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--text-tertiary)' }}>
+                    {I.box({ size: 9, color: '#2563eb' })} {linkedEls.length} element{linkedEls.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {linkedTasks.length > 0 && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--text-tertiary)' }}>
+                    {I.kanban({ size: 9, color: '#d97706' })} {linkedTasks.length} task{linkedTasks.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {hasChildren && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: lvlInfo.color }}>
+                    {I.chevronDown({ size: 9, color: lvlInfo.color })} {children.length} sub-req{children.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Children */}
+        {hasChildren && isExpanded && (
+          <div className="fade-in">
+            {children.map((child, idx) => (
+              <TreeNode key={child.id} req={child} isLast={idx === children.length - 1} parentLines={[...parentLines, !isLast]} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Level summary bar ──
+  const LevelBar = () => (
+    <div style={{ display: 'flex', gap: 1, padding: '12px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+      {[1, 2, 3, 4, 5].map(l => {
+        const info = LEVELS[l];
+        const count = levelCounts[l] || 0;
+        return (
+          <div key={l}
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 8, transition: 'all 0.15s', background: 'transparent' }}
+            onMouseEnter={e => e.currentTarget.style.background = info.bg}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 4, background: info.color }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: info.color }}>{info.label}</span>
+            </div>
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 500 }}>{info.name}</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{count}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // ── Level flow legend ──
+  const LevelFlowLegend = () => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '6px 20px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border)' }}>
+      {[1, 2, 3, 4, 5].map((l, i) => {
+        const info = LEVELS[l];
+        return (
+          <React.Fragment key={l}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 6, background: info.color + '10' }}>
+              <div style={{ width: 6, height: 6, borderRadius: 3, background: info.color }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: info.color }}>{info.label}</span>
+              <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{info.name}</span>
+            </div>
+            {i < 4 && (
+              <svg width="16" height="10" viewBox="0 0 16 10"><path d="M0 5h12M10 2l4 3-4 3" fill="none" stroke="#d1d5db" strokeWidth="1.5" /></svg>
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="fade-in" style={{ display: 'flex', height: '100%' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-secondary)' }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginRight: 'auto' }}>Requirements Traceability</h3>
+          <Tabs tabs={[{ id: 'tree', label: 'Tree' }, { id: 'table', label: 'Table' }]} active={viewMode} onChange={setViewMode} />
+          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
+          <Tabs tabs={[{ id: 'all', label: 'All' }, ...Object.entries(STATUS).map(([k, v]) => ({ id: k, label: v.label }))]} active={filterStatus} onChange={setFilterStatus} />
+        </div>
+
+        <LevelBar />
+        {viewMode === 'tree' && <LevelFlowLegend />}
+
+        {viewMode === 'table' ? (
+          <div style={{ flex: 1, overflow: 'auto', background: 'var(--bg-secondary)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  {['ID', 'Level', 'Requirement', 'Status', 'Priority', 'Verification', 'Linked Elements'].map(h => (
+                    <th key={h} style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.04em', position: 'sticky', top: 0, background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>{filteredRoots.map(r => <ReqRow key={r.id} req={r} />)}</tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ flex: 1, overflow: 'auto', background: 'var(--bg-primary)' }}>
+            <div style={{ padding: '10px 20px 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Btn size="xs" variant="ghost" onClick={expandAll}>Expand All</Btn>
+              <Btn size="xs" variant="ghost" onClick={collapseAll}>Collapse All</Btn>
+              <div style={{ width: 1, height: 16, background: 'var(--border)' }} />
+              {[2, 3, 4, 5].map(l => (
+                <Btn key={l} size="xs" variant="ghost" onClick={() => expandToLevel(l)} style={{ fontSize: 10, padding: '3px 8px' }}>
+                  To {LEVELS[l]?.label}
+                </Btn>
+              ))}
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+                {requirements.length} requirements across 5 levels
+              </span>
+            </div>
+            <div style={{ padding: '8px 20px 40px', maxWidth: 960 }}>
+              {filteredRoots.map((req, idx) => (
+                <TreeNode key={req.id} req={req} isLast={idx === filteredRoots.length - 1} parentLines={[]} />
+              ))}
+              {filteredRoots.length === 0 && (
+                <EmptyState icon="target" title="No requirements match filter" subtitle="Try changing the status filter" />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Detail panel */}
+      <div style={{ width: 320, borderLeft: '1px solid var(--border)', background: 'var(--bg-secondary)', overflow: 'auto' }}>
+        <div style={{ padding: 16, borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Details</div>
+        </div>
+        {sel ? (
+          <div style={{ padding: 16 }} className="fade-in">
+            {(() => {
+              const lvl = getReqLevel(sel);
+              const lvlInfo = LEVELS[lvl] || LEVELS[1];
+              // Build breadcrumb path
+              const path = [];
+              let current = sel;
+              while (current) { path.unshift(current); current = requirements.find(r => r.id === current.parent); }
+              return (
+                <React.Fragment>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <Badge color={lvlInfo.color} bg={lvlInfo.color + '18'} style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px' }}>{lvlInfo.label} — {lvlInfo.name}</Badge>
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, letterSpacing: '-0.01em' }}>{sel.title}</div>
+                  <div style={{ fontSize: 12, fontFamily: monoFont, color: 'var(--text-tertiary)', marginBottom: 12 }}>{sel.id}</div>
+
+                  {path.length > 1 && (
+                    <div style={{ marginBottom: 16, padding: '8px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)' }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 6, textTransform: 'uppercase' }}>Decomposition Path</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                        {path.map((p, i) => {
+                          const pLvl = LEVELS[getReqLevel(p)];
+                          return (
+                            <React.Fragment key={p.id}>
+                              {i > 0 && <svg width="10" height="8" viewBox="0 0 10 8"><path d="M0 4h7M5 1.5l3 2.5-3 2.5" fill="none" stroke="#d1d5db" strokeWidth="1.2" /></svg>}
+                              <span onClick={() => setSelectedReq(p.id)} style={{
+                                fontSize: 10, fontWeight: p.id === sel.id ? 700 : 500, padding: '2px 6px', borderRadius: 4, cursor: 'pointer',
+                                background: p.id === sel.id ? pLvl.color + '18' : 'transparent',
+                                color: p.id === sel.id ? pLvl.color : 'var(--text-secondary)',
+                              }}>{pLvl.label}: {p.title}</span>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })()}
+
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+              <StatusBadge status={sel.status} />
+              <Badge>{PRIORITIES[sel.priority]}</Badge>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>{sel.description}</div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase' }}>Verification Method</div>
+              <Badge color="var(--accent)" bg="var(--accent-light)" style={{ textTransform: 'capitalize' }}>{sel.verificationMethod}</Badge>
+            </div>
+
+            {sel.parent && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase' }}>Parent Requirement</div>
+                {(() => {
+                  const parent = requirements.find(r => r.id === sel.parent);
+                  const pLvl = parent ? LEVELS[getReqLevel(parent)] : null;
+                  return parent ? (
+                    <div onClick={() => setSelectedReq(parent.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 12 }}>
+                      <Badge color={pLvl?.color} bg={pLvl?.color + '15'} style={{ fontSize: 9, fontWeight: 700 }}>{pLvl?.label}</Badge>
+                      {I.target({ size: 12, color: '#dc2626' })} {parent.title}
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase' }}>Linked Elements</div>
+              {elements.filter(el => sel.linkedElements?.includes(el.id)).map(el => (
+                <div key={el.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', marginBottom: 4, cursor: 'pointer', fontSize: 12 }}>
+                  <EIcon type={el.type} size={12} /> {el.name}
+                  <span style={{ marginLeft: 'auto' }}>{I.externalLink({ size: 10, color: 'var(--text-tertiary)' })}</span>
+                </div>
+              ))}
+              {elements.filter(el => sel.linkedElements?.includes(el.id)).length === 0 && (
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>No linked elements</div>
+              )}
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase' }}>Linked Tasks</div>
+              {tasks.filter(t => t.linkedRequirements?.includes(sel.id)).map(t => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', marginBottom: 4, fontSize: 12 }}>
+                  {I.kanban({ size: 12, color: TASK_STATUS[t.status]?.color })} {t.title}
+                </div>
+              ))}
+              {tasks.filter(t => t.linkedRequirements?.includes(sel.id)).length === 0 && (
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>No linked tasks</div>
+              )}
+            </div>
+            {childReqs(sel.id).length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase' }}>Child Requirements</div>
+                {childReqs(sel.id).map(c => {
+                  const cLvl = LEVELS[getReqLevel(c)];
+                  return (
+                    <div key={c.id} onClick={() => setSelectedReq(c.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', marginBottom: 4, cursor: 'pointer', fontSize: 12 }}>
+                      <Badge color={cLvl?.color} bg={cLvl?.color + '15'} style={{ fontSize: 9, fontWeight: 700 }}>{cLvl?.label}</Badge>
+                      {I.target({ size: 12, color: '#dc2626' })} {c.title}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <EmptyState icon="target" title="No requirement selected" subtitle="Click a row or node to view details" />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── TASKS / KANBAN ──────────────────────────────────────────────────────────
+
+const TasksView = ({ tasks, setTasks, requirements }) => {
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [viewMode, setViewMode] = useState('kanban');
+  const columns = Object.entries(TASK_STATUS);
+  const sel = tasks.find(t => t.id === selectedTask);
+  const moveTask = (taskId, newStatus) => { setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t)); };
+
+  const TaskCard = ({ task }) => {
+    const isSelected = selectedTask === task.id;
+    return (
+      <div onClick={() => setSelectedTask(task.id)} style={{
+        padding: 12, background: 'var(--bg-secondary)', borderRadius: 'var(--radius)',
+        border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+        boxShadow: isSelected ? '0 0 0 2px var(--accent-light)' : 'var(--shadow-sm)',
+        cursor: 'pointer', marginBottom: 8, transition: 'all 0.15s',
+      }}
+      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = '#c7d2fe'; }}
+      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)'; }}>
+        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, lineHeight: 1.4 }}>{task.title}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Badge color={task.priority === 'critical' ? '#dc2626' : task.priority === 'high' ? '#d97706' : '#6b7280'}
+                 bg={task.priority === 'critical' ? '#fee2e2' : task.priority === 'high' ? '#fef3c7' : '#f3f4f6'}>
+            {PRIORITIES[task.priority]}
+          </Badge>
+          <div style={{ width: 24, height: 24, borderRadius: 12, background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: 'var(--accent)' }}>
+            {task.assignee?.split(' ').map(w => w[0]).join('')}
+          </div>
+        </div>
+        {task.linkedRequirements?.length > 0 && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {task.linkedRequirements.map(rId => (
+              <span key={rId} style={{ fontSize: 9, fontFamily: monoFont, color: 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '1px 5px', borderRadius: 3 }}>{rId}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="fade-in" style={{ display: 'flex', height: '100%' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-secondary)' }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginRight: 'auto' }}>Tasks</h3>
+          <Tabs tabs={[{ id: 'kanban', label: 'Board' }, { id: 'list', label: 'List' }]} active={viewMode} onChange={setViewMode} />
+        </div>
+        {viewMode === 'kanban' ? (
+          <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', gap: 16 }}>
+            {columns.map(([statusKey, statusInfo]) => {
+              const colTasks = tasks.filter(t => t.status === statusKey);
+              return (
+                <div key={statusKey} style={{ flex: 1, minWidth: 240 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '0 4px' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 4, background: statusInfo.color }} />
+                    <span style={{ fontSize: 12, fontWeight: 600 }}>{statusInfo.label}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 500 }}>{colTasks.length}</span>
+                  </div>
+                  <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-lg)', padding: 8, minHeight: 200 }}>
+                    {colTasks.map(t => <TaskCard key={t.id} task={t} />)}
+                    {colTasks.length === 0 && <div style={{ textAlign: 'center', padding: 24, fontSize: 11, color: 'var(--text-tertiary)' }}>No tasks</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ flex: 1, overflow: 'auto', background: 'var(--bg-secondary)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
+                {['Task', 'Status', 'Priority', 'Assignee'].map(h => (
+                  <th key={h} style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {tasks.map(t => (
+                  <tr key={t.id} onClick={() => setSelectedTask(t.id)} style={{ cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500 }}>{t.title}</td>
+                    <td style={{ padding: '10px 12px' }}><StatusBadge status={t.status} map={Object.fromEntries(Object.entries(TASK_STATUS).map(([k, v]) => [k, { ...v, bg: v.color + '15' }]))} /></td>
+                    <td style={{ padding: '10px 12px', fontSize: 12 }}>{PRIORITIES[t.priority]}</td>
+                    <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>{t.assignee}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div style={{ width: 300, borderLeft: '1px solid var(--border)', background: 'var(--bg-secondary)', overflow: 'auto' }}>
+        <div style={{ padding: 16, borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Task Details</div>
+        </div>
+        {sel ? (
+          <div style={{ padding: 16 }} className="fade-in">
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8, lineHeight: 1.4 }}>{sel.title}</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+              <StatusBadge status={sel.status} map={Object.fromEntries(Object.entries(TASK_STATUS).map(([k, v]) => [k, { ...v, bg: v.color + '15' }]))} />
+              <Badge>{PRIORITIES[sel.priority]}</Badge>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Status</label>
+              <select value={sel.status} onChange={e => moveTask(sel.id, e.target.value)}
+                style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 12, background: 'var(--bg-secondary)' }}>
+                {Object.entries(TASK_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Assignee</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ width: 20, height: 20, borderRadius: 10, background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 600, color: 'var(--accent)' }}>
+                  {sel.assignee?.split(' ').map(w => w[0]).join('')}
+                </div>
+                <span style={{ fontSize: 12 }}>{sel.assignee}</span>
+              </div>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>{sel.description}</div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase' }}>Linked Requirements</div>
+              {sel.linkedRequirements?.map(rId => {
+                const r = requirements.find(rr => rr.id === rId);
+                return r ? (
+                  <div key={rId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', marginBottom: 4, fontSize: 12 }}>
+                    {I.target({ size: 12, color: '#dc2626' })} {r.title}
+                  </div>
+                ) : null;
+              })}
+            </div>
+          </div>
+        ) : (
+          <EmptyState icon="kanban" title="No task selected" subtitle="Click a task to view details" />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── CHAT ────────────────────────────────────────────────────────────────────
+
+const ChatView = ({ messages, setMessages, requirements, tasks, elements }) => {
+  const [input, setInput] = useState('');
+  const [hoveredRef, setHoveredRef] = useState(null);
+  const bottomRef = useRef(null);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const send = () => {
+    if (!input.trim()) return;
+    const refs = [];
+    const refPattern = /(req-\d+|task-\d+|el-\d+)/gi;
+    let m;
+    while ((m = refPattern.exec(input)) !== null) refs.push(m[1]);
+    setMessages(prev => [...prev, { id: genId(), author: 'You', text: input, time: new Date().toISOString(), refs }]);
+    setInput('');
+  };
+
+  const getRefInfo = (refId) => {
+    const req = requirements.find(r => r.id === refId);
+    if (req) return { name: req.title, icon: 'target', color: '#dc2626' };
+    const task = tasks.find(t => t.id === refId);
+    if (task) return { name: task.title, icon: 'kanban', color: '#d97706' };
+    const el = elements.find(e => e.id === refId);
+    if (el) return { name: el.name, icon: 'box', color: '#2563eb' };
+    return null;
+  };
+
+  const colors = { 'Sarah Chen': '#2563eb', 'Marcus Williams': '#7c3aed', 'Emily Rodriguez': '#059669', 'James Park': '#d97706', 'Alex Kim': '#dc2626', 'You': '#1e40af' };
+
+  return (
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-secondary)' }}>
+      <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        {I.messageSquare({ size: 16, color: 'var(--text-secondary)' })}
+        <h3 style={{ fontSize: 14, fontWeight: 600 }}>Workspace Chat</h3>
+        <span style={{ fontSize: 12, color: 'var(--text-tertiary)', marginLeft: 8 }}>{messages.length} messages</span>
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Reference items with their IDs (e.g. req-001)</span>
+      </div>
+
+      <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
+        {messages.map(msg => (
+          <div key={msg.id} style={{ marginBottom: 20 }} className="fade-in">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 14, background: (colors[msg.author] || '#6b7280') + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: colors[msg.author] || '#6b7280' }}>
+                {msg.author.split(' ').map(w => w[0]).join('')}
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{msg.author}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{formatDate(msg.time)}</span>
+            </div>
+            <div style={{ paddingLeft: 36, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>{msg.text}</div>
+            {msg.refs?.length > 0 && (
+              <div style={{ paddingLeft: 36, marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {msg.refs.map((ref, i) => {
+                  const info = getRefInfo(ref);
+                  if (!info) return null;
+                  return (
+                    <div key={i} onMouseEnter={() => setHoveredRef(ref)} onMouseLeave={() => setHoveredRef(null)} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px',
+                      background: info.color + '10', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 500,
+                      color: info.color, cursor: 'pointer', border: `1px solid ${info.color}20`, transition: 'all 0.15s',
+                      boxShadow: hoveredRef === ref ? `0 0 0 2px ${info.color}20` : 'none',
+                    }}>
+                      {icons[info.icon] && icons[info.icon]({ size: 10 })} {info.name}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()}
+            placeholder="Type a message... (use IDs like req-001 to reference items)"
+            style={{ flex: 1, padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, outline: 'none', fontFamily: font }} />
+          <Btn variant="primary" icon="send" onClick={send}>Send</Btn>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── EXPORT ──────────────────────────────────────────────────────────────────
+
+const ExportView = ({ elements, requirements, tasks, diagrams, edges }) => {
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
+
+  const doExport = () => {
+    setExporting(true);
+    setTimeout(() => { setExporting(false); setExported(true); setTimeout(() => setExported(false), 3000); }, 1500);
+  };
+
+  return (
+    <div className="fade-in" style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
+      <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>Export Report</h2>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 24 }}>Generate a comprehensive systems engineering report</p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+        <Panel style={{ padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            {I.fileText({ size: 16, color: 'var(--accent)' })}
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Report Contents</span>
+          </div>
+          {[`${elements.length} System Elements`, `${requirements.length} Requirements with traceability`, `${tasks.length} Tasks with status`, `${diagrams.length} Diagrams`, `${edges.length} Relationships`, 'Verification matrix', 'Version history'].map((item, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
+              {I.checkCircle({ size: 12, color: 'var(--success)' })} {item}
+            </div>
+          ))}
+        </Panel>
+        <Panel style={{ padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            {I.settings({ size: 16, color: 'var(--text-secondary)' })}
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Export Options</span>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Format</label>
+            <select style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 12 }}>
+              <option>HTML Report</option><option>PDF Report</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Include</label>
+            {['Diagrams', 'Requirements Table', 'Task Summary', 'Version History'].map(opt => (
+              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 12, cursor: 'pointer' }}>
+                <input type="checkbox" defaultChecked style={{ accentColor: 'var(--accent)' }} /> {opt}
+              </label>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <Panel style={{ padding: 24, textAlign: 'center' }}>
+        {exported ? (
+          <div className="fade-in" style={{ color: 'var(--success)' }}>
+            {I.checkCircle({ size: 32, style: { margin: '0 auto 8px' } })}
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Report Generated Successfully</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>LEO-SAT_Systems_Report.html — Ready for download</div>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12, color: 'var(--text-secondary)' }}>Generate a complete systems engineering report</div>
+            <Btn variant="primary" icon="download" onClick={doExport} disabled={exporting} style={{ padding: '10px 24px', fontSize: 13 }}>
+              {exporting ? 'Generating Report...' : 'Generate Report'}
+            </Btn>
+          </>
+        )}
+      </Panel>
+
+      <Panel style={{ marginTop: 24, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+          Report Preview — Requirements Traceability Matrix
+        </div>
+        <div style={{ overflow: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+            <thead><tr style={{ background: 'var(--bg-tertiary)' }}>
+              {['Req ID', 'Title', 'Priority', 'Status', 'Verification', 'Linked Elements', 'Tasks'].map(h => (
+                <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {requirements.map(r => (
+                <tr key={r.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <td style={{ padding: '6px 10px', fontFamily: monoFont, color: 'var(--text-tertiary)' }}>{r.id}</td>
+                  <td style={{ padding: '6px 10px', fontWeight: 500 }}>{r.title}</td>
+                  <td style={{ padding: '6px 10px', textTransform: 'capitalize' }}>{r.priority}</td>
+                  <td style={{ padding: '6px 10px' }}><StatusBadge status={r.status} /></td>
+                  <td style={{ padding: '6px 10px', textTransform: 'capitalize' }}>{r.verificationMethod}</td>
+                  <td style={{ padding: '6px 10px' }}>{r.linkedElements?.map(id => elements.find(e => e.id === id)?.name).filter(Boolean).join(', ')}</td>
+                  <td style={{ padding: '6px 10px' }}>{tasks.filter(t => t.linkedRequirements?.includes(r.id)).length}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+};
+
+// ─── MAIN APP ────────────────────────────────────────────────────────────────
+
+const App = () => {
+  const [activeView, setActiveView] = useState('dashboard');
+  const [elements, setElements] = useState(seedElements);
+  const [requirements, setRequirements] = useState(seedRequirements);
+  const [tasks, setTasks] = useState(seedTasks);
+  const [edges, setEdges] = useState(seedEdges);
+  const [messages, setMessages] = useState(seedMessages);
+  const [selectedElement, setSelectedElement] = useState(null);
+  const [diagrams] = useState(seedDiagrams);
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: 'layoutDashboard' },
+    { id: 'diagrams', label: 'Diagrams', icon: 'layers' },
+    { id: 'requirements', label: 'Requirements', icon: 'target' },
+    { id: 'tasks', label: 'Tasks', icon: 'kanban' },
+    { id: 'chat', label: 'Chat', icon: 'messageSquare' },
+    { id: 'export', label: 'Export', icon: 'fileDown' },
+  ];
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', fontFamily: font, background: 'var(--bg-primary)' }}>
+      {/* Navigation sidebar */}
+      <div style={{ width: 220, background: '#0f172a', display: 'flex', flexDirection: 'column', color: '#e2e8f0', flexShrink: 0 }}>
+        <div style={{ padding: '16px 16px 20px', borderBottom: '1px solid #1e293b' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {I.hexagon({ size: 16, color: '#fff' })}
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.02em', color: '#f8fafc' }}>Archway</div>
+              <div style={{ fontSize: 10, color: '#64748b', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Systems Platform</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: '12px 8px', flex: 1 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', padding: '0 8px 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Workspace</div>
+          {navItems.map(item => {
+            const isActive = activeView === item.id;
+            return (
+              <div key={item.id} onClick={() => setActiveView(item.id)} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 6, cursor: 'pointer', marginBottom: 2,
+                background: isActive ? '#1e293b' : 'transparent', color: isActive ? '#f8fafc' : '#94a3b8',
+                fontWeight: isActive ? 600 : 400, fontSize: 13, transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#1e293b40'; }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
+                {icons[item.icon] && icons[item.icon]({ size: 16 })}
+                {item.label}
+                {item.id === 'chat' && (
+                  <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 99, background: '#3b82f6', color: '#fff' }}>{messages.length}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ padding: 12, borderTop: '1px solid #1e293b' }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', padding: '0 8px 6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Project</div>
+          <div style={{ padding: '6px 12px', fontSize: 12, color: '#94a3b8' }}>
+            <div style={{ fontWeight: 600, color: '#cbd5e1', marginBottom: 2 }}>LEO-SAT Mission</div>
+            <div style={{ fontSize: 10, color: '#64748b' }}>v2.4 · Last updated Feb 12</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ height: 48, background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 20px', gap: 12, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-tertiary)' }}>
+            <span>LEO-SAT Mission</span>
+            {I.chevronRight({ size: 14 })}
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{navItems.find(n => n.id === activeView)?.label}</span>
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {['SC', 'MW', 'ER', 'JP', 'AK'].map((initials, i) => (
+              <div key={i} style={{
+                width: 26, height: 26, borderRadius: 13,
+                background: ['#2563eb', '#7c3aed', '#059669', '#d97706', '#dc2626'][i] + '20',
+                color: ['#2563eb', '#7c3aed', '#059669', '#d97706', '#dc2626'][i],
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 9, fontWeight: 700, border: '2px solid var(--bg-secondary)', marginLeft: i > 0 ? -6 : 0,
+              }}>{initials}</div>
+            ))}
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginLeft: 4 }}>5 members</span>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          {activeView === 'dashboard' && <Dashboard elements={elements} requirements={requirements} tasks={tasks} diagrams={diagrams} messages={messages} />}
+          {activeView === 'diagrams' && <DiagramEditor elements={elements} setElements={setElements} edges={edges} setEdges={setEdges} diagrams={diagrams} requirements={requirements} selectedElement={selectedElement} setSelectedElement={setSelectedElement} />}
+          {activeView === 'requirements' && <RequirementsView requirements={requirements} setRequirements={setRequirements} elements={elements} tasks={tasks} selectedElement={selectedElement} setSelectedElement={setSelectedElement} />}
+          {activeView === 'tasks' && <TasksView tasks={tasks} setTasks={setTasks} requirements={requirements} />}
+          {activeView === 'chat' && <ChatView messages={messages} setMessages={setMessages} requirements={requirements} tasks={tasks} elements={elements} />}
+          {activeView === 'export' && <ExportView elements={elements} requirements={requirements} tasks={tasks} diagrams={diagrams} edges={edges} />}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
